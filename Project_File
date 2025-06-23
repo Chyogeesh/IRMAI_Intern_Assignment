@@ -1,0 +1,112 @@
+# === AI-Powered Anomaly Detection Project Structure ===
+# Tech Stack: ClickHouse, Neo4j + GraphRAG, OpenAI, HuggingFace, Python, Streamlit
+# Deployment: Cloud ready (Docker, AWS/GCP compatible)
+
+# ───────────────────────────────────────────────────────────
+# File: /ingest/ingest_data.py
+# Purpose: Load dataset into ClickHouse
+import pandas as pd
+from clickhouse_driver import Client
+
+client = Client('localhost')
+
+# Read dataset
+transactions = pd.read_csv('synthetic_transactions.csv')
+
+# Create table
+client.execute('''
+CREATE TABLE IF NOT EXISTS transactions (
+    transaction_id String,
+    user_id String,
+    timestamp DateTime,
+    amount Float64,
+    location String,
+    transaction_type String
+) ENGINE = MergeTree()
+ORDER BY timestamp;
+''')
+
+# Insert data
+for row in transactions.itertuples(index=False):
+    client.execute(
+        'INSERT INTO transactions VALUES',
+        [[row.transaction_id, row.user_id, row.timestamp, row.amount, row.location, row.transaction_type]]
+    )
+
+# ───────────────────────────────────────────────────────────
+# File: /clickhouse_udf/anomaly_udf.sql
+# Purpose: Create UDFs for anomaly detection
+-- Large Transaction UDF
+CREATE FUNCTION is_large(amount Float64) -> UInt8 AS
+amount > 10000;
+
+-- Outlier Location UDF (assumes list of allowed locations)
+CREATE FUNCTION is_outlier_location(loc String) -> UInt8 AS
+NOT (loc IN ('New York', 'San Francisco', 'London'));
+
+# ───────────────────────────────────────────────────────────
+# File: /neo4j_graph/load_graph.py
+# Purpose: Load entity relationships into Neo4j
+from neo4j import GraphDatabase
+import pandas as pd
+
+driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "password"))
+
+transactions = pd.read_csv('synthetic_transactions.csv')
+
+def create_nodes(tx, row):
+    tx.run('''
+        MERGE (u:User {id: $user_id})
+        MERGE (l:Location {name: $location})
+        MERGE (t:Type {name: $type})
+        MERGE (u)-[:MADE]->(:Transaction {id: $tid, amount: $amount, time: $timestamp})-[:AT]->(l)
+        MERGE (:Transaction {id: $tid})-[:OF_TYPE]->(t)
+    ''',
+    user_id=row.user_id, location=row.location, type=row.transaction_type,
+    tid=row.transaction_id, amount=row.amount, timestamp=row.timestamp)
+
+with driver.session() as session:
+    for row in transactions.itertuples():
+        session.write_transaction(create_nodes, row)
+
+# ───────────────────────────────────────────────────────────
+# File: /ai/describe_anomalies.py
+# Purpose: Use OpenAI to explain flagged anomalies
+import openai
+openai.api_key = "your-api-key"
+
+def explain_anomaly(transaction):
+    prompt = f"""
+    Explain in simple terms why the following transaction is anomalous:
+    {transaction}
+    """
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message['content']
+
+# ───────────────────────────────────────────────────────────
+# File: /frontend/app.py (Streamlit Frontend)
+import streamlit as st
+import pandas as pd
+from describe_anomalies import explain_anomaly
+
+st.title("AI-Powered Anomaly Detector")
+
+# Load sample flagged anomalies
+flagged = pd.read_csv("flagged_transactions.csv")
+
+for idx, row in flagged.iterrows():
+    st.write(row.to_dict())
+    if st.button(f"Explain Anomaly {row['transaction_id']}"):
+        st.info(explain_anomaly(row.to_dict()))
+
+# ───────────────────────────────────────────────────────────
+# File: /deploy/Dockerfile
+# Purpose: Containerize application
+FROM python:3.11-slim
+WORKDIR /app
+COPY . .
+RUN pip install -r requirements.txt
+CMD ["streamlit", "run", "frontend/app.py"]
