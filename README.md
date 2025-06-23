@@ -201,3 +201,54 @@ Return graph paths
 | Learning mindset           | ✅             | Uses latest AI + GraphRAG + OLAP              |
 
 MIT License © 2025 IRMAI Intern Project
+
+---
+
+## 2. `docker-compose.yml`
+
+```yaml
+version: '3.9'
+services:
+
+  clickhouse:
+    image: clickhouse/clickhouse-server
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - ./data/clickhouse:/var/lib/clickhouse
+
+  neo4j:
+    image: neo4j:5
+    environment:
+      - NEO4J_AUTH=neo4j/your-password
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - ./data/neo4j:/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - clickhouse
+      - neo4j
+
+  frontend:
+    image: python:3.11
+    working_dir: /frontend
+    volumes:
+      - ./frontend:/frontend
+    command: streamlit run app.py --server.port=8501 --server.enableCORS=false
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+
