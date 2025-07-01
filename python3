@@ -1,0 +1,16 @@
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+
+model_id = "<your-username>/flan-t5-anomaly-explainer"
+
+# Load tokenizer and model
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
+
+# Your anomaly prompt
+prompt = "Explain why the CPU usage was unusually high on server X at 3 PM."
+
+inputs = tokenizer(prompt, return_tensors="pt")
+outputs = model.generate(**inputs, max_length=100)
+result = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+print("🔎 Anomaly Explanation:", result)
