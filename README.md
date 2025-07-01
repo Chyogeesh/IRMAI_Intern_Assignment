@@ -252,3 +252,152 @@ services:
     depends_on:
       - backend
 
+          ┌────────────┐     ┌────────────┐
+          │  Data In   │────▶│ ClickHouse │
+          └────────────┘     └────┬───────┘
+                                   │
+                        ┌──────────▼─────────┐
+                        │  Anomaly Detection │ (PyOD, IsolationForest)
+                        └──────────┬─────────┘
+                                   │
+         ┌────────────┬────────────▼─────────────┐
+         │    Store Anomalies in Neo4j +        │
+         │    Extract Graph Features            │
+         └────────────┴─────────────────────────┘
+                                   │
+                       ┌───────────▼────────────┐
+                       │  Streamlit / Dashboard │
+                       └────────────────────────┘
+
+user_id | timestamp           | page       | response_time
+--------|---------------------|------------|---------------
+101     | 2025-06-23 10:00:01 | /login     | 120
+102     | 2025-06-23 10:00:02 | /checkout  | 550
+(John)-[:LOGGED_IN_FROM]->(IP 192.168.1.1)
+        ↳ Other anomalies also linked to this IP
+[120, 150, 200, 8000, 190, 160]
+GET /detect-anomalies?from=2025-06-22&to=2025-06-23
+| Component            | Purpose                                 |
+| -------------------- | --------------------------------------- |
+| **ClickHouse**       | Store and analyze huge time-series data |
+| **ML (PyOD)**        | Detect anomalies in data                |
+| **Neo4j**            | Add context/relationships to anomalies  |
+| **Streamlit**        | Show results visually                   |
+| **Backend (Python)** | Connect everything                      |
+| **Docker**           | Run all parts smoothly in one place     |
+💡 What is Anomaly Detection?
+An anomaly is something unusual or unexpected in your data — like a sudden spike in website traffic, a failed login attempt from a strange location, or a drop in server response time.
+
+Anomaly Detection means automatically finding these unusual patterns using logic or machine learning.
+
+🧠 What is AI-Powered Anomaly Detection?
+Instead of using simple rules like “value > 1000”, we use AI/ML algorithms to learn patterns and detect what’s abnormal — even if we can’t define it with simple rules.
+
+Example:
+
+Normal: CPU usage between 20-70% most of the time.
+
+Anomaly: Sudden 95% spike lasting 5 minutes → AI flags it.
+
+🗃️ What is ClickHouse?
+ClickHouse is a very fast database for analytics — especially for:
+
+Large datasets
+
+Time-series data (like logs, user activity, server metrics)
+
+Real-time queries (for dashboards or ML)
+ClickHouse can help query:
+
+“What’s the average response time per page in last 1 hour?”
+
+“Which users made most API calls?”
+
+🧾 What is Neo4j?
+Neo4j is a graph database, where data is stored as:
+
+Nodes (entities like people, IPs, logins)
+
+Relationships (edges like “connected_to”, “clicked_on”)
+
+Why Graph?
+Graphs help find patterns like:
+
+“Is this anomalous user connected to other suspicious users?”
+
+“Do anomalies cluster around a certain IP/device?”
+
+What is PyOD or ML Anomaly Detection?
+PyOD is a Python library with pre-built anomaly detection algorithms.
+
+We can give it data like:
+
+It can tell us:
+
+Normal values: 120, 150, 200, 190, 160
+
+Anomaly: 8000 (way too high)
+
+Algorithms we can use:
+
+Isolation Forest
+
+AutoEncoder (Deep Learning)
+
+One-Class SVM
+
+KNN-based detectors
+
+📊 What is Streamlit / Gradio?
+These are Python-based tools to create dashboards and UIs easily.
+
+Why Use Them?
+To show anomalies on a chart
+
+Let the user click and explore patterns
+
+Easy to deploy on Hugging Face Spaces
+
+🧰 What is Docker?
+Docker lets us run:
+
+ClickHouse
+
+Neo4j
+
+API backend
+
+Frontend UI
+
+… all together in isolated containers that work on any computer.
+
+No dependency issues. One command runs everything.
+
+🌐 What’s the Backend/API?
+We’ll use Python + FastAPI or Flask to:
+
+Talk to ClickHouse and Neo4j
+
+Run the ML model
+
+Return results to the frontend
+
+GET /detect-anomalies?from=2025-06-22&to=2025-06-23
+| Tool                   | Purpose                                    |
+| ---------------------- | ------------------------------------------ |
+| **Python (>=3.9)**     | Main programming language                  |
+| **Docker Desktop**     | To run ClickHouse and Neo4j easily         |
+| **VS Code (optional)** | Editor for writing code                    |
+| **Git**                | For version control (optional but helpful) |
+anomaly-detector/
+│
+├── backend/              ← Python APIs
+├── data/                 ← Sample input data
+├── ml_models/            ← ML code for anomaly detection
+├── dashboard/            ← Streamlit or Gradio dashboard
+├── neo4j_graph/          ← Graph code for Neo4j
+├── docker-compose.yml    ← To run everything
+└── README.md             ← Documentation
+
+
+
