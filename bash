@@ -45,3 +45,6 @@ timestamp,user_id,response_time,bytes_sent
 python generate_data.py
 
 2025-06-21 10:05:00,101,155,1050
+docker-compose up -d
+docker ps
+
