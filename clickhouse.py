@@ -1,0 +1,30 @@
+import pandas as pd
+import clickhouse_connect
+
+# 1. Connect to ClickHouse
+client = clickhouse_connect.get_client(
+    host='localhost',
+    port=8123,
+    username='default',
+    password='password123'  # This should match the one in your docker-compose.yml
+)
+
+
+# 2. Create table (if not exists)
+client.command('''
+    CREATE TABLE IF NOT EXISTS events (
+        timestamp DateTime,
+        user_id UInt32,
+        response_time UInt32,
+        bytes_sent UInt32
+    ) ENGINE = MergeTree()
+    ORDER BY timestamp
+''')
+
+# 3. Load CSV into DataFrame
+df = pd.read_csv('data/events.csv', parse_dates=['timestamp'])
+
+# 4. Upload data to ClickHouse
+client.insert_df('events', df)
+
+print("✅ Uploaded", len(df), "rows to ClickHouse.")
