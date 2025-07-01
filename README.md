@@ -400,4 +400,10 @@ anomaly-detector/
 └── README.md             ← Documentation
 
 
+| Platform                          | Integration Method                                    |
+| --------------------------------- | ----------------------------------------------------- |
+| **Streamlit**                     | Build UI and call `get_explanation()` on input        |
+| **FastAPI**                       | Create an endpoint `/explain` for real-time inference |
+| **Gradio**                        | Wrap `get_explanation()` in `gr.Interface(...)`       |
+| **Custom Frontend (React, etc.)** | Run a FastAPI backend & call via fetch                |
 
